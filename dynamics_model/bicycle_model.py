@@ -4,6 +4,12 @@ from dynamics_model import DynamicModel
 
 
 class BicycleModel(DynamicModel):
+    actions = {
+        "throttle",
+        "braking",
+        "steering_rate",
+    }
+
     def __init__(self, vehicle_params: dict, simulation_params: dict):
         self.x = 0  # m
         self.y = 0  # m
@@ -18,6 +24,7 @@ class BicycleModel(DynamicModel):
         self.front_wheel_to_center = self.wheelbase - self.rear_wheel_to_center
         self.max_acceleration = vehicle_params["max_acceleration"]
         self.min_acceleration = vehicle_params["min_acceleration"]
+        self.max_velocity = vehicle_params["max_velocity"]
         self.lock_to_lock_steering = vehicle_params["lock_to_lock_steering"]
 
         self.dt = simulation_params["dt"]
@@ -57,6 +64,7 @@ class BicycleModel(DynamicModel):
         )
 
         self.velocity += self.acceleration * self.dt
+        self.velocity = np.clip(self.velocity, -self.max_velocity, self.max_velocity)
 
         heading_dot = (
             self.velocity * np.sin(self.slip_angle) / self.rear_wheel_to_center
