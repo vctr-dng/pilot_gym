@@ -1,3 +1,11 @@
+[project]
+name = "pilot-gym"
+version = "0.1.0"
+description = "A reinforcement learning gym environment for autonomous racing"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
 [tool.ruff]
 # Same as Black.
 line-length = 88
