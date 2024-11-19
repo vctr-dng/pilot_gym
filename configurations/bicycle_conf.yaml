@@ -1,23 +1,26 @@
-vehicle_model_conf:
-  - name: "bicycle"
-  - vehicle_params:
-    - "wheelbase"
-    - "rear_wheel_to_center"
-    - "max_acceleration"
-    - "min_acceleration"
-    - "max_velocity"
-    - "lock_to_lock_steering"
+simulation:
+  params:
+      dt: 0.01
+dynamic_model:
+  name: bicycle
+  params:
+    wheelbase : 2
+    rear_wheel_to_center : 1.2
+    max_acceleration: 1
+    min_acceleration: 1.2
+    max_velocity : 300
+    lock_to_lock_steering : 1.4
 observation_conf:
-  - vehicle_model:
-    - "x"
-    - "y"
-    - "heading"
-    - "velocity"
-    - "slip_angle"
-    - "steering"
-  - track_observer:
-    - "lateral_proportion"
-    - "relative_heading"
-  - track_description:
-    - num_points: 10
-    - stride: 2
+  vehicle_model:
+    - x
+    - y
+    - heading
+    - velocity
+    - slip_angle
+    - steering
+  track_observer:
+    - lateral_proportion
+    - relative_heading
+  track_description:
+    num_points: 10
+    stride: 2
