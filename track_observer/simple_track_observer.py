@@ -3,9 +3,10 @@ from typing import Tuple
 import numpy as np
 from scipy.spatial import KDTree
 
+from components_registry import register
 from track import Track
 
-
+@register("track_observer/simple_track_observer")
 class SimpleTrackObserver:
     def __init__(self, track: Track):
         self.track: Track = track
