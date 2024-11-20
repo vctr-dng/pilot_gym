@@ -11,13 +11,16 @@ dynamic_model:
     max_velocity : 300
     lock_to_lock_steering : 1.4
 observation_conf:
-  vehicle_model:
-    - x
-    - y
-    - heading
-    - velocity
-    - slip_angle
-    - steering
+  state_observer:
+    name: base_state_observer
+    observed_state:
+      - x
+      - y
+      - heading
+      - velocity
+      - slip_angle
+      - steering
+      - alp
   track_observer:
     - lateral_proportion
     - relative_heading
