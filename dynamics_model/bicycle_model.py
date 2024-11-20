@@ -1,8 +1,10 @@
 import numpy as np
 
+from components_registry import register
 from dynamics_model import DynamicModel
 
 
+@register("dynamic_model/bicycle")
 class BicycleModel(DynamicModel):
     actions = {
         "throttle",
