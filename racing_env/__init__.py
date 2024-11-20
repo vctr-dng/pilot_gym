@@ -1,6 +1,7 @@
 from gymnasium import register
 
 import dynamics_model
+import state_observer
 import track_observer
 
 from .racing_env import RacingEnv as RacingEnv
