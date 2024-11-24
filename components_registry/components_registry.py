@@ -36,11 +36,16 @@ def register(key):
     return decorator
 
 
-def make(id, **kwargs):
+def get_component(id):
     type_name, sep, sub_name = id.partition("/")
     if not sep:
         sub_name = type_name
         type_name = DEFAULT_TYPE
     if type_name not in registry or sub_name not in registry[type_name]:
         raise ValueError(f"Component '{id}' is not registered.")
-    return registry[type_name][sub_name](**kwargs)
+    return registry[type_name][sub_name]
+
+
+def make(id, **kwargs):
+    component = get_component(id)
+    return component(**kwargs)
