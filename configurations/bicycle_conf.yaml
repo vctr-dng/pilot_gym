@@ -1,6 +1,7 @@
 simulation:
   params:
       dt: 0.01
+
 dynamic_model:
   name: bicycle
   params:
@@ -27,3 +28,13 @@ observation_conf:
   track_description:
     num_points: 10
     stride: 2
+
+track_selection:
+  track_controller:
+    name: local_list_controller
+    params:
+      list_path: data/track_list.yaml
+  track_sampler:
+    name: round_robin
+    params:
+      {}
