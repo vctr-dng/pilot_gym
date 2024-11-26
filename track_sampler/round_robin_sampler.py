@@ -9,7 +9,7 @@ from .base_track_sampler import BaseTrackSampler
 class RoundRobinSampler(BaseTrackSampler):
     def __init__(self, controller: BaseTrackController):
         self.controller: BaseTrackController = controller
-        self.track_indexes = self.controller.get_track_track_indexes()
+        self.track_indexes = self.controller.get_track_indexes()
         self.length = self.controller.length
         self.index: int = 0
 
