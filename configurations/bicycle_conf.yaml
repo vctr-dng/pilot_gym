@@ -21,13 +21,16 @@ observation_conf:
       - velocity
       - slip_angle
       - steering
-      - alp
+      # - alp
   track_observer:
-    - lateral_proportion
-    - relative_heading
-  track_description:
-    num_points: 10
-    stride: 2
+    name: simple_track_observer
+    params:
+      observed_state:
+        - lateral_proportion
+        - relative_heading
+      track_description:
+        num_points: 10
+        stride: 2
 
 track_selection:
   track_controller:

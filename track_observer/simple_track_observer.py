@@ -6,11 +6,42 @@ from scipy.spatial import KDTree
 from components_registry import register
 from track import Track
 
+
 @register("track_observer/simple_track_observer")
 class SimpleTrackObserver:
-    def __init__(self, track: Track):
+    def __init__(self, track: Track, observed_state: list, track_description: dict):
         self.track: Track = track
         self.track_tree: KDTree = KDTree(track.reference_path)
+        self.observed_state: list = observed_state
+        self.track_description: dict = track_description
+        self.observation_size: int = (
+            len(observed_state) + 3 * track_description["num_points"]
+        )
+
+    def __call__(self, observation_point: np.ndarray, heading: float) -> np.ndarray:
+        relative_points = self.get_relative_points(
+            observation_point,
+            heading,
+            self.track_description["num_points"],
+            self.track_description["stride"],
+        )
+        additional_state = np.empty(len(self.observed_state))
+        for i in range(len(self.observed_state)):
+            state: float = None
+            match self.observed_state[i]:
+                case "lateral_proportion":
+                    state = self.get_lateral_proportion(
+                        observation_point, observation_point
+                    )
+                case "relative_heading":
+                    state = self.get_relative_heading(observation_point, heading)
+                case _:
+                    raise ValueError(
+                        f"Unknown observed track state: {self.observed_state[i]}"
+                    )
+            additional_state[i] = state
+
+        return np.hstack((relative_points, additional_state))
 
     def get_closest_info(self, point: np.ndarray) -> Tuple[float, int]:
         """
@@ -157,21 +188,38 @@ class SimpleTrackObserver:
         relative_reference = self.get_relative_position(
             origin,
             heading,
-            self.track.reference_path[index : index + num_points * stride : stride],
+            self.get_wrapped_next_points(
+                self.track.reference_path, index, num_points, stride
+            ),
         )
 
         relative_left_boundaries = self.get_relative_position(
             origin,
             heading,
-            self.track.left_boundaries[index : index + num_points * stride : stride],
+            self.get_wrapped_next_points(
+                self.track.left_boundaries, index, num_points, stride
+            ),
         )
 
         relative_right_boundaries = self.get_relative_position(
             origin,
             heading,
-            self.track.right_boundaries[index : index + num_points * stride : stride],
+            self.get_wrapped_next_points(
+                self.track.right_boundaries, index, num_points, stride
+            ),
         )
 
-        return np.vstack(
+        return np.hstack(
             (relative_reference, relative_left_boundaries, relative_right_boundaries)
         )
+
+    @staticmethod
+    def get_wrapped_next_points(
+        points: np.ndarray, index: int, num: int, stride: int
+    ) -> np.ndarray:
+        wrapped_next_points = np.empty(num)
+
+        for i in range(num):
+            wrapped_next_points[i] = points[(index + i * stride) % len(points)]
+
+        return wrapped_next_points
