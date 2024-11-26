@@ -1,4 +1,5 @@
 import gymnasium as gym
+import numpy as np
 
 from components_registry import make
 
@@ -7,8 +8,8 @@ class RacingEnv(gym.Env):
     def __init__(self, env_configuration: dict):
         # initialize vehicle model
         observation_conf = env_configuration["observation_conf"]
-        state_observer_conf = observation_conf['state_observer']
-        track_observer_conf = observation_conf['track_observer']
+        state_observer_conf = observation_conf["state_observer"]
+        track_observer_conf = observation_conf["track_observer"]
         track_selection_conf = env_configuration["track_selection"]
 
         self.vehicle_model = make(
@@ -38,17 +39,33 @@ class RacingEnv(gym.Env):
             f"track_observer/{track_observer_conf['name']}",
             **track_observer_conf["params"],
         )
-        
+
+        self.action_names = self.vehicle_model.actions
+        self.action_space = gym.spaces.Box(-1, 1, len(self.action_names))
+
         self.state_names = state_observer_conf["observed_state"]
         self.observation_space = self.state_observer.observation_size
-        + self.track_observer.observation_size
+        +self.track_observer.observation_size
 
         self.reset()
 
-    def step(self, action):
+    def step(self, action: np.array):
+        processed_action: dict = None
+
         pass
 
+    def action_array_to_dict(self, action: np.array):
+        processed_action: dict = dict.fromkeys(self.action_names)
+        for i, action_name in enumerate(self.action_names):
+            processed_action[action_name] = action[i]
+
+        return processed_action
+
     def reset(self):
+        # Sample a track
+
+        # Set the vehicle model to the initial state
+
         pass
 
     def render(self):

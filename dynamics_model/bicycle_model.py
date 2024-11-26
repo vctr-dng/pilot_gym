@@ -6,11 +6,11 @@ from dynamics_model import DynamicModel
 
 @register("dynamic_model/bicycle")
 class BicycleModel(DynamicModel):
-    actions = {
+    actions = [
         "throttle",
         "braking",
         "steering_rate",
-    }
+    ]
 
     def __init__(self, vehicle_params: dict, simulation_params: dict):
         self.x = 0  # m
@@ -52,6 +52,9 @@ class BicycleModel(DynamicModel):
 
         self.acceleration = (
             throttle * self.max_acceleration - braking * self.min_acceleration
+        )
+        self.acceleration = np.clip(
+            self.acceleration, self.min_acceleration, self.max_acceleration
         )
 
         self.steering += steering_rate * self.dt

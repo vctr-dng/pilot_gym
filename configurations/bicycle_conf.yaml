@@ -41,3 +41,14 @@ track_selection:
     name: round_robin
     params:
       {}
+
+action_processing:
+  steering_rate:
+    scale: 1
+    offset: 0
+  throttle:
+    scale: 1.2
+    offset: 0
+  brake:
+    scale: 1.2
+    offset: 0
