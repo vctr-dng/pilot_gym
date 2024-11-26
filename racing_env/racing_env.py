@@ -7,6 +7,7 @@ class RacingEnv(gym.Env):
     def __init__(self, env_configuration: dict):
         # initialize vehicle model
         observation_conf = env_configuration["observation_conf"]
+        track_selection_conf = env_configuration["track_selection"]
 
         self.vehicle_model = make(
             f"dynamic_model/{env_configuration['dynamic_model']['name']}",
@@ -18,6 +19,17 @@ class RacingEnv(gym.Env):
             f"state_observer/{observation_conf['state_observer']['name']}",
             dynamic_model=self.vehicle_model,
             observed_state=observation_conf["state_observer"]["observed_state"],
+        )
+
+        self.track_controller = make(
+            f"track_controller/{track_selection_conf['track_controller']['name']}",
+            **track_selection_conf["track_controller"]["params"],
+        )
+
+        self.track_sampler = make(
+            f"track_sampler/{track_selection_conf['track_sampler']['name']}",
+            controller=self.track_controller,
+            **track_selection_conf["track_sampler"]["params"],
         )
 
         self.reset()
