@@ -7,6 +7,7 @@ class BaseStateObserver:
     def __init__(self, dynamic_model: DynamicModel, observed_state: list):
         self.dynamic_model = dynamic_model
         self.observed_state = observed_state
+        self.observation_size = len(observed_state)
 
     def observe(self) -> dict:
         observation = dict()
