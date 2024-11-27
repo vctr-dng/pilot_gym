@@ -3,13 +3,20 @@ from typing import Tuple
 import numpy as np
 from scipy.spatial import KDTree
 
+from components_registry import register
 from track import Track
 
 
+@register("track_observer/simple_track_observer")
 class SimpleTrackObserver:
-    def __init__(self, track: Track):
+    def __init__(self, track: Track, observed_state: list, track_description: dict):
         self.track: Track = track
         self.track_tree: KDTree = KDTree(track.reference_path)
+        self.observed_state: list = observed_state
+        self.track_description: dict = track_description
+        self.observation_size: int = (
+            len(observed_state) + 3 * 2 * track_description["num_points"]
+        )
 
     def get_closest_info(self, point: np.ndarray) -> Tuple[float, int]:
         """
@@ -68,7 +75,7 @@ class SimpleTrackObserver:
         _, index = self.get_closest_info(point)
         return self.track.local_heading_map[index] - heading
 
-    def get_lateral_propotion(self, point: np.ndarray) -> float:
+    def get_lateral_proportion(self, point: np.ndarray) -> float:
         """
         Get the lateral proportion of the given point on the track. The proportion is
         normalized between -1 and 1, where -1 corresponds
