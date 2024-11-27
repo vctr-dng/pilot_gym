@@ -11,3 +11,11 @@ class BaseTrackData(ABC):
     @abstractmethod
     def get_track(self) -> Track:
         pass
+
+
+@dataclass
+class LocalTrackData(BaseTrackData):
+    path: str
+
+    def get_track(self):
+        return Track.load(self.path)
