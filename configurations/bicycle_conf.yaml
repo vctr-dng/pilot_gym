@@ -1,0 +1,83 @@
+simulation:
+  params:
+      dt: 0.1
+      time_limit: 120
+      min_velocity: 3
+
+dynamics_initializer:
+  name: bicycle
+  params:
+    boundaries:
+      lateral_proportion:
+        min: -0.8
+        max: 0.8
+
+dynamic_model:
+  name: bicycle
+  params:
+    wheelbase : 2
+    rear_wheel_to_center : 1.2
+    max_acceleration: 1
+    min_acceleration: -1.2
+    max_velocity : 300
+    lock_to_lock_steering : 1.4
+
+observation_conf:
+  state_observer:
+    name: base_state_observer
+    observed_state:
+      x:
+        path: x
+      y:
+        path: y
+      acceleration:
+        path: acceleration
+      heading:
+        path: heading
+        min: -3.14
+        max: 3.14
+      velocity:
+        path: velocity
+        min: 0
+        max: 30
+      slip_angle:
+        path: slip_angle
+      steering:
+        path: steering
+  track_observer:
+    name: simple_track_observer
+    params:
+      observed_state:
+        - lateral_proportion
+        - relative_heading
+      track_description:
+        num_points: 10
+        stride: 2
+
+track_selection:
+  track_controller:
+    name: local_list_controller
+    params:
+      list_path: data/track_list.yaml
+  track_sampler:
+    name: round_robin
+    params:
+      {}
+
+action_processing:
+  steering_rate:
+    scale: 1
+    offset: 0
+  throttle:
+    scale: 1.2
+    offset: 0
+  braking:
+    scale: 1.2
+    offset: 0
+
+reward:
+  name: simple_reward
+  params:
+    coefficients:
+      progress: 1.5
+      out_track: 2
