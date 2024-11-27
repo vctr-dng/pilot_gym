@@ -1,7 +1,12 @@
-# docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/ppo/#ppo_continuous_actionpy
-import os
-import random
 import sys
+import os
+
+import yaml
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../pykan")))
+
+# docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/ppo/#ppo_continuous_actionpy
+import random
 import time
 from dataclasses import dataclass
 from typing import Callable
@@ -16,8 +21,7 @@ from pykan.kan import KAN
 from torch.distributions.normal import Normal
 from torch.utils.tensorboard import SummaryWriter
 
-# Adiciona o caminho para a pasta cleanrl_utils ao sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+import racing_env as racing_env
 
 
 def evaluate(
@@ -88,16 +92,8 @@ class Args:
     """the user or org name of the model repository from the Hugging Face Hub"""
 
     # Algorithm specific arguments
-    env_id: str = "HalfCheetah-v4"
-    """the id of the environment"""
-    total_timesteps: int = 1000000
-    """total timesteps of the experiments"""
     learning_rate: float = 3e-4
     """the learning rate of the optimizer"""
-    num_envs: int = 1
-    """the number of parallel game environments"""
-    num_steps: int = 2048
-    """the number of steps to run in each environment per policy rollout"""
     anneal_lr: bool = True
     """Toggle learning rate annealing for policy and value networks"""
     gamma: float = 0.99
@@ -132,23 +128,40 @@ class Args:
     num_iterations: int = 0
     """the number of iterations (computed in runtime)"""
 
+    # TODO: put in a training config file
+    env_id: str = "pilot_gym/RacingEnv-v0"
+    """the id of the environment"""
+    env_config: str = "configurations/bicycle_conf.yaml"
+    total_timesteps: int = 1000000
+    """total timesteps of the experiments"""
+    num_envs: int = 1
+    """the number of parallel game environments"""
+    num_steps: int = 2048
+    """the number of steps to run in each environment per policy rollout"""
 
-def make_env(env_id, idx, capture_video, run_name, gamma):
+
+def make_env(env_id, idx, capture_video, run_name, gamma, env_config=""):
     def thunk():
         if capture_video and idx == 0:
             env = gym.make(env_id, render_mode="rgb_array")
             env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
         else:
-            env = gym.make(env_id)
-        env = gym.wrappers.FlattenObservation(
-            env
-        )  # deal with dm_control's Dict observation space
-        env = gym.wrappers.RecordEpisodeStatistics(env)
-        env = gym.wrappers.ClipAction(env)
-        env = gym.wrappers.NormalizeObservation(env)
-        env = gym.wrappers.TransformObservation(env, lambda obs: np.clip(obs, -10, 10))
-        env = gym.wrappers.NormalizeReward(env, gamma=gamma)
-        env = gym.wrappers.TransformReward(env, lambda reward: np.clip(reward, -10, 10))
+            conf = dict()
+            if env_config:
+                # load into variable conf the yaml file from the path given by env_config
+                conf["env_configuration"] = yaml.load(
+                    open(env_config, "r"), Loader=yaml.SafeLoader
+                )
+            env = gym.make(env_id, **conf)
+        # env = gym.wrappers.FlattenObservation(
+        # env
+        # )  # deal with dm_control's Dict observation space
+        # env = gym.wrappers.RecordEpisodeStatistics(env)
+        # env = gym.wrappers.ClipAction(env)
+        # env = gym.wrappers.NormalizeObservation(env)
+        # env = gym.wrappers.TransformObservation(env, lambda obs: np.clip(obs, -10, 10))
+        # env = gym.wrappers.NormalizeReward(env, gamma=gamma)
+        # env = gym.wrappers.TransformReward(env, lambda reward: np.clip(reward, -10, 10))
         return env
 
     return thunk
@@ -257,7 +270,14 @@ if __name__ == "__main__":
             # env setup
             envs = gym.vector.SyncVectorEnv(
                 [
-                    make_env(args.env_id, i, args.capture_video, run_name, args.gamma)
+                    make_env(
+                        args.env_id,
+                        i,
+                        args.capture_video,
+                        run_name,
+                        args.gamma,
+                        env_config=args.env_config,
+                    )
                     for i in range(args.num_envs)
                 ]
             )
