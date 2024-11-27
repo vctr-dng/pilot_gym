@@ -11,20 +11,29 @@ class SimpleRewardModel(BaseRewardModel):
         super().__init__(coefficients)
 
     def __call__(
-        self, action: dict, state_observation: dict, track_observation: np.array
+        self,
+        action: dict,
+        state_observation: dict,
+        track_observation: np.array,
+        non_observable_states: dict,
     ) -> float:
         reward = 0
 
-        progress = track_observation[0]
-        lateral_proportion = track_observation[1]
+        progress = non_observable_states["progress"]
+        lateral_proportion = track_observation[0]
 
         progress_term = self.coefficients["progress"] * progress
 
         out_track_term = 0
         if np.abs(lateral_proportion) > 1:
             progress_term = 0
-            out_track_term = self.coefficients["out_track"] * lateral_proportion
+            out_track_term = -self.coefficients["out_track"] * lateral_proportion
 
         reward = progress_term + out_track_term
 
-        return reward
+        reward_info = {
+            "progress": progress_term,
+            "out_track": out_track_term,
+        }
+
+        return reward, reward_info
