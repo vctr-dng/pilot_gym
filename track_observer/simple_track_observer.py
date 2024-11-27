@@ -3,13 +3,43 @@ from typing import Tuple
 import numpy as np
 from scipy.spatial import KDTree
 
+from components_registry import register
 from track import Track
 
 
+@register("track_observer/simple_track_observer")
 class SimpleTrackObserver:
-    def __init__(self, track: Track):
+    def __init__(self, track: Track, observed_state: list, track_description: dict):
         self.track: Track = track
         self.track_tree: KDTree = KDTree(track.reference_path)
+        self.observed_state: list = observed_state
+        self.track_description: dict = track_description
+        self.observation_size: int = (
+            len(observed_state) + 3 * 2 * track_description["num_points"]
+        )
+
+    def __call__(self, observation_point: np.ndarray, heading: float) -> np.ndarray:
+        relative_points = self.get_relative_points(
+            observation_point,
+            heading,
+            self.track_description["num_points"],
+            self.track_description["stride"],
+        )
+        additional_state = np.empty(len(self.observed_state))
+        for i in range(len(self.observed_state)):
+            state: float = None
+            match self.observed_state[i]:
+                case "lateral_proportion":
+                    state = self.get_lateral_proportion(observation_point)
+                case "relative_heading":
+                    state = self.get_relative_heading(observation_point, heading)
+                case _:
+                    raise ValueError(
+                        f"Unknown observed track state: {self.observed_state[i]}"
+                    )
+            additional_state[i] = state
+
+        return np.hstack((additional_state, relative_points))
 
     def get_closest_info(self, point: np.ndarray) -> Tuple[float, int]:
         """
@@ -68,7 +98,7 @@ class SimpleTrackObserver:
         _, index = self.get_closest_info(point)
         return self.track.local_heading_map[index] - heading
 
-    def get_lateral_propotion(self, point: np.ndarray) -> float:
+    def get_lateral_proportion(self, point: np.ndarray) -> float:
         """
         Get the lateral proportion of the given point on the track. The proportion is
         normalized between -1 and 1, where -1 corresponds
@@ -153,24 +183,29 @@ class SimpleTrackObserver:
         """
 
         _, index = self.get_closest_info(origin)
+
+        wrapped_indices = np.arange(index, index + num_points * stride, stride) % len(
+            self.track.reference_path
+        )
+
         relative_reference = self.get_relative_position(
             origin,
             heading,
-            self.track.reference_path[index : index + num_points * stride : stride],
+            self.track.reference_path[wrapped_indices],
         )
 
         relative_left_boundaries = self.get_relative_position(
             origin,
             heading,
-            self.track.left_boundaries[index : index + num_points * stride : stride],
+            self.track.left_boundaries[wrapped_indices],
         )
 
         relative_right_boundaries = self.get_relative_position(
             origin,
             heading,
-            self.track.right_boundaries[index : index + num_points * stride : stride],
+            self.track.right_boundaries[wrapped_indices],
         )
 
-        return np.vstack(
+        return np.hstack(
             (relative_reference, relative_left_boundaries, relative_right_boundaries)
-        )
+        ).flatten()
