@@ -15,7 +15,7 @@ class SimpleTrackObserver:
         self.observed_state: list = observed_state
         self.track_description: dict = track_description
         self.observation_size: int = (
-            len(observed_state) + 3 * track_description["num_points"]
+            len(observed_state) + 3 * 2 * track_description["num_points"]
         )
 
     def __call__(self, observation_point: np.ndarray, heading: float) -> np.ndarray:
@@ -30,9 +30,7 @@ class SimpleTrackObserver:
             state: float = None
             match self.observed_state[i]:
                 case "lateral_proportion":
-                    state = self.get_lateral_proportion(
-                        observation_point, observation_point
-                    )
+                    state = self.get_lateral_proportion(observation_point)
                 case "relative_heading":
                     state = self.get_relative_heading(observation_point, heading)
                 case _:
@@ -100,7 +98,7 @@ class SimpleTrackObserver:
         _, index = self.get_closest_info(point)
         return self.track.local_heading_map[index] - heading
 
-    def get_lateral_propotion(self, point: np.ndarray) -> float:
+    def get_lateral_proportion(self, point: np.ndarray) -> float:
         """
         Get the lateral proportion of the given point on the track. The proportion is
         normalized between -1 and 1, where -1 corresponds
@@ -185,41 +183,29 @@ class SimpleTrackObserver:
         """
 
         _, index = self.get_closest_info(origin)
+
+        wrapped_indices = np.arange(index, index + num_points * stride, stride) % len(
+            self.track.reference_path
+        )
+
         relative_reference = self.get_relative_position(
             origin,
             heading,
-            self.get_wrapped_next_points(
-                self.track.reference_path, index, num_points, stride
-            ),
+            self.track.reference_path[wrapped_indices],
         )
 
         relative_left_boundaries = self.get_relative_position(
             origin,
             heading,
-            self.get_wrapped_next_points(
-                self.track.left_boundaries, index, num_points, stride
-            ),
+            self.track.left_boundaries[wrapped_indices],
         )
 
         relative_right_boundaries = self.get_relative_position(
             origin,
             heading,
-            self.get_wrapped_next_points(
-                self.track.right_boundaries, index, num_points, stride
-            ),
+            self.track.right_boundaries[wrapped_indices],
         )
 
         return np.hstack(
             (relative_reference, relative_left_boundaries, relative_right_boundaries)
-        )
-
-    @staticmethod
-    def get_wrapped_next_points(
-        points: np.ndarray, index: int, num: int, stride: int
-    ) -> np.ndarray:
-        wrapped_next_points = np.empty(num)
-
-        for i in range(num):
-            wrapped_next_points[i] = points[(index + i * stride) % len(points)]
-
-        return wrapped_next_points
+        ).flatten()
