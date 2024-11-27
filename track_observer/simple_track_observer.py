@@ -18,6 +18,29 @@ class SimpleTrackObserver:
             len(observed_state) + 3 * 2 * track_description["num_points"]
         )
 
+    def __call__(self, observation_point: np.ndarray, heading: float) -> np.ndarray:
+        relative_points = self.get_relative_points(
+            observation_point,
+            heading,
+            self.track_description["num_points"],
+            self.track_description["stride"],
+        )
+        additional_state = np.empty(len(self.observed_state))
+        for i in range(len(self.observed_state)):
+            state: float = None
+            match self.observed_state[i]:
+                case "lateral_proportion":
+                    state = self.get_lateral_proportion(observation_point)
+                case "relative_heading":
+                    state = self.get_relative_heading(observation_point, heading)
+                case _:
+                    raise ValueError(
+                        f"Unknown observed track state: {self.observed_state[i]}"
+                    )
+            additional_state[i] = state
+
+        return np.hstack((additional_state, relative_points))
+
     def get_closest_info(self, point: np.ndarray) -> Tuple[float, int]:
         """
         Get the distance to the closest point on the reference path and the index of
