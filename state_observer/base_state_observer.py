@@ -9,19 +9,34 @@ class BaseStateObserver:
         self.observed_state = observed_state
         self.observation_size = len(observed_state)
 
-    def observe(self) -> dict:
+    def __call__(self) -> dict:
         observation = dict()
 
-        for state in self.observed_state:
-            try:
-                observation[state] = self.dynamic_model[state]
-            except (KeyError, TypeError):
-                try:
-                    observation[state] = getattr(self.dynamic_model, state)
-                except AttributeError:
-                    raise Exception(
-                        f"State '{state}' not found in dynamic model\
-                        {self.dynamic_model.__class__}"
-                    )
+        for state_name in self.observed_state.keys():
+            observation[state_name] = self.query(state_name)
 
         return observation
+
+    def query(self, state_name: str) -> float:
+        state_value: float = None
+
+        if state_name not in self.observed_state.keys():
+            raise Exception(f"State '{state_name}' not found in observed state")
+
+        info = self.observed_state[state_name]
+
+        try:
+            state_value = self.dynamic_model[info["path"]]
+        except (KeyError, TypeError):
+            try:
+                state_value = getattr(self.dynamic_model, info["path"])
+            except AttributeError:
+                raise Exception(
+                    f"State '{state_name}' not found in dynamic model\
+                    {self.dynamic_model.__class__}"
+                )
+
+        if state_value is None:
+            raise Exception(f"Could not query state '{state_name}'")
+
+        return state_value
