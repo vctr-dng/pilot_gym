@@ -14,7 +14,7 @@ class RoundRobinSampler(BaseTrackSampler):
         self.index: int = 0
 
     def __call__(self) -> Track:
-        track_data = self.controller.get_track_data(self.track_indexes[self.index])
+        track_data = self.controller.get_track_data(self.index)
         track = track_data.get_track()
         self.index = (self.index + 1) % self.length
         return track
