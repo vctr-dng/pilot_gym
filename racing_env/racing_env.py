@@ -98,7 +98,13 @@ class RacingEnv(gym.Env):
         self.current_progress = self.track.progress_map[closest_index]
         delta_progress = (
             self.current_progress - old_progress
-        )  # TODO: integrate delta_progress in track observation
+        ) % self.track.progress_map[
+            -1
+        ]  # TODO: integrate delta_progress in track observation
+
+        non_observable_states = {
+            "progress": delta_progress,
+        }
 
         observation, obs_info = self.get_observation()
 
@@ -106,10 +112,10 @@ class RacingEnv(gym.Env):
             processed_action,
             obs_info["state_observation_dict"],
             obs_info["track_observation"],
+            non_observable_states,
         )
 
         terminated, truncated = self.check_episode_end()
-        terminated = terminated and (delta_progress < 0)
 
         info = self.get_info(reward_info)
 
@@ -181,9 +187,15 @@ class RacingEnv(gym.Env):
         return observation, obs_info
 
     def get_reward(
-        self, action: dict, state_observation: dict, track_observation: np.array
+        self,
+        action: dict,
+        state_observation: dict,
+        track_observation: np.array,
+        non_observable_states: dict,
     ):
-        reward, info = self.reward_model(action, state_observation, track_observation)
+        reward, info = self.reward_model(
+            action, state_observation, track_observation, non_observable_states
+        )
 
         return reward, info
 
