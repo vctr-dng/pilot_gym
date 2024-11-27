@@ -41,7 +41,7 @@ class SimpleTrackObserver:
                     )
             additional_state[i] = state
 
-        return np.hstack((relative_points, additional_state))
+        return np.hstack((additional_state, relative_points))
 
     def get_closest_info(self, point: np.ndarray) -> Tuple[float, int]:
         """
