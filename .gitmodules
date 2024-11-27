@@ -1,0 +1,3 @@
+[submodule "rl_alg/pykan"]
+	path = rl_alg/pykan
+	url = https://github.com/KindXiaoming/pykan.git
