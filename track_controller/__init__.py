@@ -1,0 +1,1 @@
+from .local_list_controller import LocalListController as LocalListController
