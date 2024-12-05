@@ -96,7 +96,13 @@ class SimpleTrackObserver:
         """
 
         _, index = self.get_closest_info(point)
-        return self.track.local_heading_map[index] - heading
+        local_heading = self.track.local_heading_map[index]
+        local_heading = local_heading % (2 * np.pi)
+        heading = heading % (2 * np.pi)
+        relative_heading = (local_heading - heading) % (2 * np.pi)
+        if relative_heading >= np.pi:
+            relative_heading -= 2 * np.pi
+        return relative_heading
 
     def get_lateral_proportion(self, point: np.ndarray) -> float:
         """
