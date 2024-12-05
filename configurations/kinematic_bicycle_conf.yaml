@@ -1,7 +1,7 @@
 simulation:
   params:
       dt: 0.1
-      time_limit: 20
+      time_limit: 10
       min_velocity: 5
 
 dynamics_initializer:
@@ -9,23 +9,20 @@ dynamics_initializer:
   params:
     boundaries:
       lateral_proportion:
-        min: -0.75
-        max: 0.75
+        min: -0.25
+        max: 0.25
     initial_state_conditions:
       max_velocity_proportion: 1
 
 dynamic_model:
-  name: bicycle
+  name: kinematic_bicycle
   params:
     wheelbase : 2
     rear_wheel_to_center : 1.2
-    max_acceleration: 3
-    min_acceleration: -5
-    max_velocity : 50
+    max_acceleration: 7.5
+    min_acceleration: -15
+    max_velocity : 30
     lock_to_lock_steering : 2
-    moment_of_inertia: 1000
-    tire_stiffness_front: 75000
-    tire_stiffness_rear: 75000
 
 observation_conf:
   state_observer:
@@ -33,26 +30,14 @@ observation_conf:
     observed_state:
       acceleration:
         path: acceleration
+        min: -15
+        max: 7.5
       steering:
         path: steering
       velocity:
         path: velocity
         min: 0
-        max: 40
-      v_x:
-        path: x_dot
-        min: 0
-        max: 40
-      v_y:
-        path: y_dot
-        min: 0
-        max: 40
-      heading_dot:
-        path: heading_dot
-      alpha_front:
-        path: alpha_front
-      alpha_rear:
-        path: alpha_rear
+        max: 30
   track_observer:
     name: simple_track_observer
     params:
@@ -60,14 +45,14 @@ observation_conf:
         - lateral_proportion
         - relative_heading
       track_description:
-        num_points: 20
+        num_points: 12
         stride: 6
 
 track_selection:
   track_controller:
     name: local_list_controller
     params:
-      list_path: data/track_list.yaml
+      list_path: data/track_short.yaml
   track_sampler:
     name: round_robin
     params:
@@ -94,10 +79,10 @@ reward:
     coefficients:
       progress: 7
       out_track: 2
-      steering_cost: 1.2
+      steering_cost: 0.0
       throttle_cost: 0.0
       braking_cost: 0.0
       steering_cost_pow: 1.25
       throttle_cost_pow: 1.25
       braking_cost_pow: 1.25
-      double_pedal_cost: 2
+      double_pedal_cost: 0
