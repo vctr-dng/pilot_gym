@@ -77,6 +77,7 @@ class RacingEnv(gym.Env):
         self.simulation_time = 0
 
         self.current_progress = 0
+        self.cumulative_reward = 0
 
         self.reset()
 
@@ -88,8 +89,8 @@ class RacingEnv(gym.Env):
 
         vehicle_pos = np.array(
             [
-                self.state_observer.query("x"),
-                self.state_observer.query("y"),
+                self.vehicle_model.x,
+                self.vehicle_model.y,
             ]
         )
 
@@ -116,8 +117,12 @@ class RacingEnv(gym.Env):
         )
 
         terminated, truncated = self.check_episode_end()
+        if terminated:
+            reward = -50
 
-        info = self.get_info(reward_info)
+        self.cumulative_reward += reward
+
+        info = self.get_info(reward_info, terminated or truncated)
 
         return observation, reward, terminated, truncated, info
 
@@ -133,7 +138,15 @@ class RacingEnv(gym.Env):
 
         observation, _ = self.get_observation()
 
-        return observation, self.get_info({})
+        self.simulation_time = 0
+        self.cumulative_reward = 0
+
+        closest_index = self.track_observer.get_closest_index(
+            np.array([initial_state["x"], initial_state["y"]])
+        )
+        self.current_progress = self.track.progress_map[closest_index]
+
+        return observation, self.get_info({}, False)
 
     def render(self):
         pass
@@ -142,12 +155,14 @@ class RacingEnv(gym.Env):
         pass
 
     def process_action(self, action: np.array):
+        action = np.clip(action, -1, 1)
         action_dic = self.action_array_to_dict(action)
 
         for action_name, processing_info in self.action_processing_info.items():
-            action_dic[action_name] = self.singular_process(
-                action_dic[action_name], processing_info
-            )
+            for process in processing_info:
+                action_dic[action_name] = self.singular_process(
+                    action_dic[action_name], process
+                )
 
         return action_dic
 
@@ -169,10 +184,11 @@ class RacingEnv(gym.Env):
                 state_observation_dict[state_name], processing_info
             )
 
+        # TODO: the issue is x or y might not be an observable state
         vehicle_pos = np.array(
             [
-                state_observation_dict["x"],
-                state_observation_dict["y"],
+                self.vehicle_model.x,
+                self.vehicle_model.y,
             ]
         )
         heading = self.vehicle_model.heading
@@ -204,12 +220,11 @@ class RacingEnv(gym.Env):
 
         current_pos = np.array(
             [
-                self.state_observer.query("x"),
-                self.state_observer.query("y"),
+                self.vehicle_model.x,
+                self.vehicle_model.y,
             ]
         )
-        current_absolute_heading = self.state_observer.query("heading")
-
+        current_absolute_heading = self.vehicle_model.heading
         relative_heading = self.track_observer.get_relative_heading(
             current_pos, current_absolute_heading
         )
@@ -236,11 +251,18 @@ class RacingEnv(gym.Env):
 
         return terminated, truncated
 
-    def get_info(self, reward_info):
+    def get_info(self, reward_info: dict, done: bool = False):
         base_info = dict()
 
         base_info["simulation_time"] = self.simulation_time
         base_info["reward_info"] = reward_info
+
+        if done:
+            episode_info = {
+                "r": self.cumulative_reward,
+                "l": int(self.simulation_time / self.time_step),
+            }
+            base_info["final_info"] = [{"episode": episode_info}]
 
         return base_info
 
@@ -249,7 +271,8 @@ class RacingEnv(gym.Env):
         new_value = og_value
 
         if "min" and "max" in info:
-            new_value = (og_value - info["min"]) / (info["max"] - info["min"])
+            new_value = np.clip(new_value, info["min"], info["max"])
+            new_value = (new_value - info["min"]) / (info["max"] - info["min"])
         elif "scale" and "offset" in info:
             new_value = og_value * info["scale"] + info["offset"]
 
