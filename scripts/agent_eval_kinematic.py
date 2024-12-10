@@ -11,7 +11,7 @@ from track.track import Track
 # change current working dir to root
 os.chdir('..')
 
-from agent import KanPPPOAgent
+from agent import KanPPOAgent
 from racing_env import RacingEnv
 #%%
 iter_num = 100

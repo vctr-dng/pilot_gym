@@ -16,13 +16,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.distributions.normal import Normal
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 import racing_env as racing_env
 from agent.kan_ppo_agent import KanPPOAgent as Agent
-from pykan.kan import KAN
 
 DEFAULT_PARAMS = args = {
     "exp_name": os.path.basename(__file__)[: -len(".py")],
@@ -91,7 +89,7 @@ def get_default_params():
 
 
 def evaluate(
-    model_path: str,
+    agent: Agent,
     make_env: Callable,
     env_id: str,
     eval_episodes: int,
@@ -108,19 +106,6 @@ def evaluate(
     envs = gym.vector.SyncVectorEnv(
         [make_env(env_id, 0, capture_video, run_name, gamma, conf=conf)]
     )
-    obs_space_size = np.prod(envs.single_observation_space.shape)
-    action_space_size = np.prod(envs.single_action_space.shape)
-    agent = Model(
-        obs_space_size,
-        action_space_size,
-        k,
-        g,
-        critic_hidden_sizes=params["critic_hidden_sizes"],
-        actor_hidden_sizes=params["actor_hidden_sizes"],
-        device=device,
-    ).to(device)  # Pass k and g here
-    agent.load_state_dict(torch.load(model_path, map_location=device))
-    # agent.eval()
 
     num_episodes_ended = 0
     obs, _ = envs.reset()
@@ -173,89 +158,6 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     torch.nn.init.orthogonal_(layer.weight, std)
     torch.nn.init.constant_(layer.bias, bias_const)
     return layer
-
-
-class Agent_DISABLED(nn.Module):
-    def __init__(
-        self,
-        obs_space_size,
-        action_space_size,
-        k,
-        g,
-        critic_hidden_sizes=[],
-        actor_hidden_sizes=[],
-        device: str = "cpu",
-    ):
-        super().__init__()
-        init_layer_size = obs_space_size  # TODO : remove redundancy
-        action_layer_size = action_space_size
-
-        width = [init_layer_size] + critic_hidden_sizes + [1]
-
-        self.critic = KAN(width=width, grid=g, k=k, device=device)
-
-        # self.critic = layer_init(nn.Linear(init_layer_size, 1), std=1.0)
-
-        # self.critic = nn.Sequential(
-        #    layer_init(nn.Linear(np.array(
-        #       obs_space_size).prod(), 64)
-        #    ),
-        #    nn.Tanh(),
-        #    layer_init(nn.Linear(64, 64)),
-        #    nn.Tanh(),
-        #    layer_init(nn.Linear(64, 1), std=1.0),
-        # )
-
-        self.actor_mean = KAN(
-            width=[init_layer_size, 128, 128, action_layer_size],
-            grid=g,
-            k=k,
-            device=device,
-        )
-
-        in_size = init_layer_size
-        out_size = action_space_size
-
-        self.layers = []
-        for next_size in actor_hidden_sizes:
-            self.layers.append(layer_init(nn.Linear(in_size, next_size).to(device)))
-            self.layers.append(nn.Tanh())
-            in_size = next_size
-        self.layers.append(
-            layer_init(nn.Linear(in_size, out_size).to(device), std=0.01)
-        )
-
-        self.actor_mean = nn.Sequential(*self.layers)
-
-        # self.actor_mean = layer_init(nn.Linear(
-        #     init_layer_size,
-        #     action_layer_size
-        # ),
-        # std=0.01)
-
-        self.actor_logstd = nn.Parameter(torch.zeros(1, action_layer_size))
-
-    def get_value(self, x):
-        return self.critic.forward(x)
-
-    def get_action_and_value(self, x, action=None):
-        action_mean = self.actor_mean.forward(x)
-        action_logstd = self.actor_logstd.expand_as(action_mean)
-        action_std = torch.exp(action_logstd)
-        probs = Normal(action_mean, action_std)
-
-        value = self.get_value(x)
-
-        if action is None:
-            # action = probs.sample()
-            action = torch.tanh(probs.sample())
-        return (
-            action,
-            probs.log_prob(action).sum(1),
-            probs.entropy().sum(1),
-            value,
-        )
-
 
 def train(params: dict):
     missing_keys = []
@@ -604,7 +506,7 @@ def train(params: dict):
                     print(f"ITERATION {iteration} model saved to {model_path}")
 
                     episodic_returns, episodic_lengths = evaluate(
-                        model_path,
+                        agent,
                         make_env,
                         params["env_id"],
                         eval_episodes=10,
