@@ -145,9 +145,9 @@ def evaluate(
                     cumulative_reward = info[-1]["episode"]["r"]
                     episode_length = info[-1]["episode"]["l"]
                     print(
-                        f"eval_episode={len(episodic_returns)}, "
-                        f"episodic_return={cumulative_reward}, "
-                        f"episodic_length={episode_length}"
+                        f"eval_episode={len(episodic_returns)}, "\
+                        f"episodic_return={cumulative_reward}, "\
+                        f"episodic_length={episode_length}"\
                     )
                     episodic_returns += [cumulative_reward]
                     episodic_lengths += [episode_length]
@@ -277,7 +277,7 @@ def train(params: dict):
     for k in k_values:
         for g in g_values:
             run_name = (
-                f"{params['env_id']}__{params['exp_name']}__{params['seed']}"
+                f"{params['env_id']}__{params['exp_name']}__{params['seed']}"\
                 f"__{int(time.time())}__k{k}_g{g}_MLP"
             )
 
@@ -306,12 +306,6 @@ def train(params: dict):
             #     run_name=run_name,
             #     global_step=0,
             # )
-
-            # TRY NOT TO MODIFY: seeding
-            random.seed(params["seed"])
-            np.random.seed(params["seed"])
-            torch.manual_seed(params["seed"])
-            torch.backends.cudnn.deterministic = params["torch_deterministic"]
 
             device = torch.device(
                 "cuda" if torch.cuda.is_available() and params["cuda"] else "cpu"
@@ -360,6 +354,12 @@ def train(params: dict):
             optimizer = optim.Adam(
                 agent.parameters(), lr=params["learning_rate"], eps=1e-5
             )
+            
+            # TRY NOT TO MODIFY: seeding
+            random.seed(params["seed"])
+            np.random.seed(params["seed"])
+            torch.manual_seed(params["seed"])
+            torch.backends.cudnn.deterministic = params["torch_deterministic"]
 
             # ALGO Logic: Storage setup
             obs = torch.zeros(
@@ -589,7 +589,7 @@ def train(params: dict):
                     formatted_iteration_number = (
                         f"{iteration:0{len(str(params['num_iterations']))}}"
                     )
-                    model_path = f"{save_dir}/{params['exp_name']}_"
+                    model_path = f"{save_dir}/{params['exp_name']}_"\
                     f"{formatted_iteration_number}.cleanrl_model"
                     torch.save(agent.state_dict(), model_path)
                     # model_info = {
