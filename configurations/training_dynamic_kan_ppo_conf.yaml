@@ -13,7 +13,6 @@ k: 2 # spline order
 
 critic_hidden_sizes: []
 
-
 actor_hidden_sizes: []
 
 update_epochs: 4
