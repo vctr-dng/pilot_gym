@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 import gymnasium as gym
@@ -77,6 +78,7 @@ class RacingEnv(gym.Env):
         self.simulation_time = 0
 
         self.current_progress = 0
+        self.delta_progress = 0
         self.cumulative_reward = 0
 
         self.reset()
@@ -97,14 +99,13 @@ class RacingEnv(gym.Env):
         old_progress = self.current_progress
         closest_index = self.track_observer.get_closest_index(vehicle_pos)
         self.current_progress = self.track.progress_map[closest_index]
-        delta_progress = (
-            self.current_progress - old_progress
-        ) % self.track.progress_map[
-            -1
-        ]  # TODO: integrate delta_progress in track observation
-
+        self.delta_progress = self.current_progress - old_progress
+        self.delta_progress = self.delta_progress % self.track.progress_map[-1]
+        
+        terminated, truncated = self.check_episode_end()
+        
         non_observable_states = {
-            "progress": delta_progress,
+            "progress": self.delta_progress,
         }
 
         observation, obs_info = self.get_observation()
@@ -116,7 +117,6 @@ class RacingEnv(gym.Env):
             non_observable_states,
         )
 
-        terminated, truncated = self.check_episode_end()
         if terminated:
             reward = -50
 
@@ -229,25 +229,33 @@ class RacingEnv(gym.Env):
             current_pos, current_absolute_heading
         )
 
-        if np.abs(relative_heading) >= np.pi / 2:
+        if np.abs(relative_heading) >= np.pi / 3:
             terminated = True
+            logging.debug("Terminated: Vehicle heading exceeded limit.")
 
         if (
             self.state_observer.query("velocity")
             < self.simulation_params["min_velocity"]
         ):
             terminated = True
+            logging.debug("Terminated: Vehicle velocity below minimum threshold.")
 
         lateral_proportion = self.track_observer.get_lateral_proportion(current_pos)
 
         if np.abs(lateral_proportion) >= 1.25:
             terminated = True
+            logging.debug("Terminated: Vehicle exceeded lateral track boundaries.")
+            
+        if self.delta_progress < 0:
+            terminated = True
+            logging.debug("Terminated: Vehicle moved backwards on the track.")
 
         if terminated:
             return terminated, truncated
 
         if self.simulation_time >= self.time_limit:
             truncated = True
+            logging.debug("Truncated: Simulation time exceeded time limit.")
 
         return terminated, truncated
 
