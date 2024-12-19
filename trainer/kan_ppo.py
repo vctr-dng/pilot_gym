@@ -1,12 +1,8 @@
-# %% change cwd to root of the project
-# os.chdir("../")
-
+import argparse
+import os
 import yaml
 
 from rl_alg.ppo_continuous_action_kan import get_default_params, train
-
-# %%
-
 
 def compute_params(params):
     env_config_path = params["env_config"]
@@ -26,17 +22,18 @@ def compute_params(params):
 
     return params
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train PPO model")
+    parser.add_argument("--params", type=str, required=True, help="Path to the params YAML file")
+    args = parser.parse_args()
 
-# %%
-params_path = "configurations/training_kinematic_kan_ppo_conf.yaml"
+    if not os.path.exists(args.params):
+        raise FileNotFoundError(f"The specified params file does not exist: {args.params}")
 
-if not params_path:
-    params = get_default_params()
-else:
-    with open(params_path, "r") as file:
+    with open(args.params, "r") as file:
         params = yaml.safe_load(file)
 
-params = compute_params(params)
-print(params)
+    params = compute_params(params)
+    print(params)
 
-train(params)
+    train(params)
