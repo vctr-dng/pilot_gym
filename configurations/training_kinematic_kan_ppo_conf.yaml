@@ -8,14 +8,10 @@ total_timesteps: 1000000 # not used
 
 # NN architecture
 
-# KAN
-
 critic_hidden_sizes: []
 
 grid: 3 # number of grid intervals
 k: 2 # spline order
-
-# MLP
 
 actor_hidden_sizes: []
 
