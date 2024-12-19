@@ -9,6 +9,8 @@ from track import Track
 
 @register("track_observer/simple_track_observer")
 class SimpleTrackObserver:
+    normalize = True
+    
     def __init__(self, track: Track, observed_state: list, track_description: dict):
         self.track: Track = track
         self.track_tree: KDTree = KDTree(track.reference_path)
@@ -25,6 +27,8 @@ class SimpleTrackObserver:
             self.track_description["num_points"],
             self.track_description["stride"],
         )
+        if self.normalize:
+            relative_points /= self.track_description["num_points"]
         additional_state = np.empty(len(self.observed_state))
         for i in range(len(self.observed_state)):
             state: float = None
