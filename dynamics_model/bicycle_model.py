@@ -9,7 +9,7 @@ class BicycleModel(DynamicModel):
     actions = [
         "throttle",
         "braking",
-        "steering_rate",
+        "steering",
     ]
 
     def __init__(self, vehicle_params: dict, simulation_params: dict):
@@ -43,6 +43,7 @@ class BicycleModel(DynamicModel):
         self.max_tire_force_rear = (
             self.mass * 9.81 * (self.front_wheel_to_center / self.wheelbase)
         )
+        self.max_slip_angle = 0.2 if "max_slip_angle" not in vehicle_params else vehicle_params["max_slip_angle"]
 
         self.alpha_front = 0
         self.alpha_rear = 0
@@ -60,6 +61,32 @@ class BicycleModel(DynamicModel):
         self.sim_dt = simulation_params["dt"]
         self.sub_steps = 10
         self.dt = self.sim_dt / self.sub_steps
+
+        self.reset_actions()
+    
+    def reset_actions(self):
+        for action in self.actions:
+            self.__setattr__(action, 0)
+            self.__setattr__(f"previous_{action}", 0)
+
+    def update_actions(self, actions: dict):
+        for action in self.actions:
+            self.__setattr__(action, actions[action])
+            if action == 'throttle':
+                self.throttle *= self.max_acceleration
+            elif action == 'braking':
+                self.braking *= self.min_acceleration
+            elif action == 'steering':
+                self.steering *= self.lock_to_lock_steering / 2
+                self.steering = np.clip(
+                    self.steering,
+                    -self.lock_to_lock_steering / 2,
+                    self.lock_to_lock_steering / 2,
+                )
+    
+    def update_previous_actions(self):
+        for action in self.actions:
+            self.__setattr__(f"previous_{action}", self.__getattribute__(action))
 
     def reset(self, initial_state: dict):
         self.verify_initial_state(initial_state)
@@ -79,17 +106,16 @@ class BicycleModel(DynamicModel):
         self.v_y_dot = 0
         self.x_dot = 0
         self.y_dot = 0
+        
+        self.reset_actions()
 
     def step(self, action: dict):
         self.verify_action(action)
-        throttle, braking, steering_rate = (
-            action["throttle"],
-            action["braking"],
-            action["steering_rate"],
-        )
+        self.update_previous_actions()
+        self.update_actions(action)
 
         self.acceleration = (
-            throttle * self.max_acceleration - braking * self.min_acceleration
+            self.throttle - self.braking
         )
         self.acceleration = np.clip(
             self.acceleration, -self.min_acceleration, self.max_acceleration
@@ -97,14 +123,6 @@ class BicycleModel(DynamicModel):
 
         if self.velocity >= self.max_velocity and self.acceleration > 0:
             self.acceleration = 0
-
-        # steering_rate is actually used as an angle
-        self.steering = steering_rate * self.lock_to_lock_steering / 2
-        self.steering = np.clip(
-            self.steering,
-            -self.lock_to_lock_steering / 2,
-            self.lock_to_lock_steering / 2,
-        )
 
         for _ in range(self.sub_steps):
             self.update_dynamic()
@@ -118,9 +136,8 @@ class BicycleModel(DynamicModel):
             -self.v_y + self.rear_wheel_to_center * self.heading_dot,
             max(self.v_x, 1e-3),  # Prevent division by zero
         )
-        max_slip_angle = 0.2
-        self.alpha_front = np.clip(self.alpha_front, -max_slip_angle, max_slip_angle)
-        self.alpha_rear = np.clip(self.alpha_rear, -max_slip_angle, max_slip_angle)
+        self.alpha_front = np.clip(self.alpha_front, -self.max_slip_angle, self.max_slip_angle)
+        self.alpha_rear = np.clip(self.alpha_rear, -self.max_slip_angle, self.max_slip_angle)
 
         self.Fy_front = self.tire_stiffness_front * self.alpha_front
         self.Fy_rear = self.tire_stiffness_rear * self.alpha_rear
@@ -156,7 +173,7 @@ class BicycleModel(DynamicModel):
         self.verify_action(action)
 
         input = np.array(
-            [action["throttle"], action["braking"], action["steering_rate"]]
+            [action["throttle"], action["braking"], action["steering"]]
         )
 
         self.verify_input(input)
@@ -172,7 +189,7 @@ class BicycleModel(DynamicModel):
 
     @staticmethod
     def verify_action(action: dict) -> dict:
-        for key in ["throttle", "braking", "steering_rate"]:
+        for key in ["throttle", "braking", "steering"]:
             if key not in action:
                 action[key] = 0
 
