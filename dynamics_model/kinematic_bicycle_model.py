@@ -9,7 +9,7 @@ class KinematicBicycleModel(DynamicModel):
     actions = [
         "throttle",
         "braking",
-        "steering_rate",
+        "steering",
     ]
 
     def __init__(self, vehicle_params: dict, simulation_params: dict):
@@ -25,11 +25,37 @@ class KinematicBicycleModel(DynamicModel):
         self.rear_wheel_to_center = vehicle_params["rear_wheel_to_center"]
         self.front_wheel_to_center = self.wheelbase - self.rear_wheel_to_center
         self.max_acceleration = vehicle_params["max_acceleration"]
-        self.min_acceleration = vehicle_params["min_acceleration"]
+        self.min_acceleration = np.abs(vehicle_params["min_acceleration"])
         self.max_velocity = vehicle_params["max_velocity"]
         self.lock_to_lock_steering = vehicle_params["lock_to_lock_steering"]
 
         self.dt = simulation_params["dt"]
+        
+        self.reset_actions()
+    
+    def reset_actions(self):
+        for action in self.actions:
+            self.__setattr__(action, 0)
+            self.__setattr__(f"previous_{action}", 0)
+    
+    def update_actions(self, actions: dict):
+        for action in self.actions:
+            self.__setattr__(action, actions[action])
+            if action == 'throttle':
+                self.throttle *= self.max_acceleration
+            elif action == 'braking':
+                self.braking *= self.min_acceleration
+            elif action == 'steering':
+                self.steering *= self.lock_to_lock_steering / 2
+                self.steering = np.clip(
+                    self.steering,
+                    -self.lock_to_lock_steering / 2,
+                    self.lock_to_lock_steering / 2,
+                )
+    
+    def update_previous_actions(self):
+        for action in self.actions:
+            self.__setattr__(f"previous_{action}", self.__getattribute__(action))
 
     def reset(self, initial_state: dict):
         self.verify_initial_state(initial_state)
@@ -41,29 +67,18 @@ class KinematicBicycleModel(DynamicModel):
         self.slip_angle = initial_state["slip_angle"]
         self.velocity = initial_state["velocity"]
         self.acceleration = initial_state["acceleration"]
+        
+        self.reset_actions()
 
     def step(self, action: dict):
         self.verify_action(action)
-        throttle, braking, steering_rate = (
-            action["throttle"],
-            action["braking"],
-            action["steering_rate"],
-        )
+        self.update_previous_actions()
+        self.update_actions(action)
 
         self.acceleration = (
-            throttle * self.max_acceleration + braking * self.min_acceleration
+            self.throttle - self.braking
         )
-        self.acceleration = np.clip(
-            self.acceleration, self.min_acceleration, self.max_acceleration
-        )
-
-        # steering_rate is actually used as an angle
-        self.steering = steering_rate * self.lock_to_lock_steering / 2
-        self.steering = np.clip(
-            self.steering,
-            -self.lock_to_lock_steering / 2,
-            self.lock_to_lock_steering / 2,
-        )
+        self.acceleration = np.clip(self.acceleration, -self.min_acceleration, self.max_acceleration)
 
         self.slip_angle = np.arctan(
             self.rear_wheel_to_center * np.tan(self.steering) / self.wheelbase
@@ -84,13 +99,13 @@ class KinematicBicycleModel(DynamicModel):
 
     def action_to_input(self, action: dict):
         self.verify_action(action)
-
+        # input = np.array(
+        #     [action["throttle"], action["braking"], action["steering_rate"]]
+        # )
         input = np.array(
-            [action["throttle"], action["braking"], action["steering_rate"]]
+            [value for key, value in action.items()]
         )
-
         self.verify_input(input)
-
         return input
 
     @staticmethod
@@ -100,9 +115,9 @@ class KinematicBicycleModel(DynamicModel):
 
         return input
 
-    @staticmethod
-    def verify_action(action: dict) -> dict:
-        for key in ["throttle", "braking", "steering_rate"]:
+    @classmethod
+    def verify_action(cls, action: dict) -> dict:
+        for key in cls.actions:
             if key not in action:
                 action[key] = 0
 
