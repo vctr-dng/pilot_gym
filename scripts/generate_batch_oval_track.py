@@ -5,13 +5,13 @@ from track_generator import OvalGenerator
 
 
 def main():
-    straight_length_sweep = np.arange(100, 101)
-    track_width_sweep = np.arange(2, 3)
-    turning_radius_sweep = np.arange(8, 9)
+    straight_length_sweep = np.arange(40, 41)
+    track_width_sweep = np.arange(8, 9)
+    turning_radius_sweep = np.arange(15, 16)
     sample_rate = 2
 
     saved_paths = []
-
+    generated_tracks = []
     for straight_length in straight_length_sweep:
         for track_width in track_width_sweep:
             for turning_radius in turning_radius_sweep:
@@ -23,6 +23,7 @@ def main():
                 }
                 oval_generator = OvalGenerator(**oval_settings)
                 track = oval_generator.generate_track()
+                generated_tracks.append(track)
                 save_path = (
                     f"data/tracks/oval_track"
                     f"_{oval_settings['straight_length']}"
@@ -36,6 +37,9 @@ def main():
     # Save in a yaml file the saved_paths
     with open("data/track_list.yaml", "w") as file:
         yaml.dump(saved_paths, file)
+    
+    for track in generated_tracks:
+        track.plot()
 
 
 if __name__ == "__main__":

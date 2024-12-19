@@ -9,6 +9,8 @@ from track import Track
 
 @register("track_observer/simple_track_observer")
 class SimpleTrackObserver:
+    normalize = True
+    
     def __init__(self, track: Track, observed_state: list, track_description: dict):
         self.track: Track = track
         self.track_tree: KDTree = KDTree(track.reference_path)
@@ -25,6 +27,8 @@ class SimpleTrackObserver:
             self.track_description["num_points"],
             self.track_description["stride"],
         )
+        if self.normalize:
+            relative_points /= self.track_description["num_points"]
         additional_state = np.empty(len(self.observed_state))
         for i in range(len(self.observed_state)):
             state: float = None
@@ -96,7 +100,13 @@ class SimpleTrackObserver:
         """
 
         _, index = self.get_closest_info(point)
-        return self.track.local_heading_map[index] - heading
+        local_heading = self.track.local_heading_map[index]
+        local_heading = local_heading % (2 * np.pi)
+        heading = heading % (2 * np.pi)
+        relative_heading = (local_heading - heading) % (2 * np.pi)
+        if relative_heading >= np.pi:
+            relative_heading -= 2 * np.pi
+        return relative_heading
 
     def get_lateral_proportion(self, point: np.ndarray) -> float:
         """
