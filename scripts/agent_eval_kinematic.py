@@ -1,4 +1,5 @@
 #%%
+import logging
 import os
 # from gymnasium import make
 from matplotlib.animation import FFMpegWriter, PillowWriter
@@ -22,14 +23,6 @@ track_path = "data/tracks/oval_track_20_5_8_2.npz"
 track = Track.load(track_path)
 
 kinematic_runs = [
-    'RacingEnv-v0__ppo_continuous_action_kan__1__1732839319__k2_g3_MLP',
-    'RacingEnv-v0__ppo_continuous_action_kan__1__1732849888__k2_g3_MLP',
-    'RacingEnv-v0__ppo_continuous_action_kan__1__1732859302__k2_g3_MLP',
-    'RacingEnv-v0__ppo_continuous_action_kan__1__1732868457__k2_g3_MLP',
-    'RacingEnv-v0__ppo_continuous_action_kan__1__1732868956__k2_g3_MLP',
-    'RacingEnv-v0__ppo_continuous_action_kan__1__1733125569__k2_g3_MLP',
-    'RacingEnv-v0__ppo_continuous_action_kan__1__1733125625__k2_g3_MLP',
-    'RacingEnv-v0__ppo_continuous_action_kan__1__1733281921__k2_g3_MLP',
 ]
 
 run_name = kinematic_runs[-1]
@@ -57,27 +50,29 @@ formatted_iteration_number = f"{iter_num:0{len(str(training_params['num_iteratio
 model_path = f"{run_dir}/{iter_num}/ppo_continuous_action_kan_{formatted_iteration_number}.cleanrl_model"
 if not os.path.exists(model_path):
     model_path = f"{run_dir}/ppo_continuous_action_kan_{formatted_iteration_number}.cleanrl_model"
+if not os.path.exists(model_path):
+    model_path = f"{run_dir}/{iter_num}/ppo_continuous_action_kan_"
 
-agent = KanPPPOAgent.load_model(
+agent = KanPPOAgent.load_model(
     model_path=model_path,
     params_path=training_params_path
 )
-
-
+logging.basicConfig(level=logging.DEBUG)
 # env:racing_env.RacingEnv = make(training_params["env_id"], **env_conf)
 env = RacingEnv(env_configuration=env_conf['env_configuration'])
 
 
 for x in range(0, 2, 2):
-    # initial_state = {
-    #             # "x": 0,
-    #             # "y": 0,
-    #             # "heading": np.pi/2,
-    #             # # "steering": 0,
-    #             # # "slip_angle": 0,
-    #             # "velocity": 10,
-    #             # # "acceleration": 0,
-    # }
+    initial_state = {
+                "x": 3,
+                "y": 0,
+                "heading": np.pi/2,
+                "steering": 0,
+                "slip_angle": 0,
+                "velocity": 20,
+                "acceleration": 0,
+    }
+    override_initial_state = True
 
     logged_states = [
         "x",
@@ -91,10 +86,16 @@ for x in range(0, 2, 2):
         "relative_heading"
     ]
     obs, info = env.reset()
-    # for key, value in initial_state.items():
-    #     env.vehicle_model.__setattr__(key, value)
+    
+    if override_initial_state:
+        for key, value in initial_state.items():
+            env.vehicle_model.__setattr__(key, value)
+        closest_index = env.track_observer.get_closest_index(
+                np.array([initial_state["x"], initial_state["y"]])
+            )
+        env.current_progress = env.track.progress_map[closest_index]
+        obs, obs_info = env.get_observation()
 
-    # obs, obs_info = env.get_observation()
     observations = [obs]
     actions = []
     rewards = []
@@ -145,8 +146,8 @@ for x in range(0, 2, 2):
             except Exception:
                 pass
 
-        states["throttle"].append(action[0])
-        states["braking"].append(action[1])
+        # states["throttle"].append(action[0])
+        # states["braking"].append(action[1])
         
         track_observation = env.track_observer(np.array([states["x"][-1], states["y"][-1]]), states["heading"][-1])
         track_observation = track_observation.reshape(-1, 2)
@@ -219,10 +220,15 @@ for x in range(0, 2, 2):
         plt.grid()
         plt.ticklabel_format(style='plain', axis='y', useOffset=False)
         plt.show()
-
-plt.plot(rewards)
-plt.show()
-print(rewards)
+    
+    plt.plot(np.arange(len(rewards)) * dt, rewards, label='Reward')
+    plt.title(f"Reward over Time")
+    plt.xlabel("Time [s]")
+    plt.legend()
+    plt.grid()
+    plt.ticklabel_format(style='plain', axis='y', useOffset=False)
+    plt.show()
+    print(rewards)
 
 # car_heading = np.array(states["heading"]) % (2*np.pi)
 
@@ -270,20 +276,95 @@ print(rewards)
 
 # %%
 pos = np.array([env.vehicle_model.x, env.vehicle_model.y])
-pos = np.array([0, 17])
+pos = np.array([-2.5, 32.5])
 heading = env.vehicle_model.heading
+heading = np.pi/3
+closest_index = env.track_observer.get_closest_index(pos)
 track_observation = env.track_observer(pos, heading)
 track_observation = track_observation.reshape(-1, 2)
 track_observation = env.track_observer.get_relative_points(pos, heading, 12, 5).reshape(-1, 2)
-plt.scatter(track_observation[:, 0], track_observation[:, 1], c='blue', label='Track Observation')
-plt.title("Track Observation")
+rotation_matrix = np.array([[0, 1], [-1, 0]])
+track_observation = np.dot(track_observation, rotation_matrix)
+observed_reference = track_observation[0::3]
+observed_left = track_observation[1::3]
+observed_right = track_observation[2::3]
+plt.scatter(observed_reference[:, 0], observed_reference[:, 1], c='blue', label='Reference')
+plt.scatter(observed_left[:, 0], observed_left[:, 1], c='green', label='Left Boundary')
+plt.scatter(observed_right[:, 0], observed_right[:, 1], c='red', label='Right Boundary')
+# plt.scatter(track_observation[:, 0], track_observation[:, 1], c='blue', label='Track Observation')
+plt.title("Track perception")
 plt.xlabel("x")
 plt.ylabel("y")
 plt.legend()
 plt.grid()
 plt.show()
 # %%
+num_points = env.track_observer.track_description['num_points']
+stride = env.track_observer.track_description['stride']
+plt.scatter(
+    env.track.reference_path[closest_index:closest_index+num_points*stride:stride, 0],
+    env.track.reference_path[closest_index:closest_index+num_points*stride:stride, 1],
+    c='blue', label='Perceived reference'
+)
+plt.plot(
+    env.track.reference_path[:closest_index, 0],
+    env.track.reference_path[:closest_index, 1],
+    c='grey', label='Unseen track'
+)
+plt.plot(
+    env.track.reference_path[closest_index+num_points*(stride-1):, 0],
+    env.track.reference_path[closest_index+num_points*(stride-1):, 1],
+    c='grey',
+)
 
+plt.scatter(
+    env.track.left_boundaries[closest_index:closest_index+num_points*stride:stride, 0],
+    env.track.left_boundaries[closest_index:closest_index+num_points*stride:stride, 1],
+    c='green', label='Perceived left boundary'
+)
+plt.plot(
+    env.track.left_boundaries[:closest_index, 0],
+    env.track.left_boundaries[:closest_index, 1],
+    c='grey'
+)
+plt.plot(
+    env.track.left_boundaries[closest_index+num_points*(stride-1):, 0],
+    env.track.left_boundaries[closest_index+num_points*(stride-1):, 1],
+    c='grey'
+)
+
+plt.scatter(
+    env.track.right_boundaries[closest_index:closest_index+num_points*stride:stride, 0],
+    env.track.right_boundaries[closest_index:closest_index+num_points*stride:stride, 1],
+    c='red', label='Perceived right boundary'
+)
+plt.plot(
+    env.track.right_boundaries[:closest_index, 0],
+    env.track.right_boundaries[:closest_index, 1],
+    c='grey'
+)
+plt.plot(
+    env.track.right_boundaries[closest_index+num_points*(stride-1):, 0],
+    env.track.right_boundaries[closest_index+num_points*(stride-1):, 1],
+    c='grey'
+)
+
+# Plot the cyan unit vector using the heading and the pos
+plt.arrow(
+    pos[0], pos[1],
+    np.cos(heading)*3, np.sin(heading)*3,
+    head_width=1, head_length=1, fc='cyan', ec='cyan',
+)
+
+plt.gcf().set_size_inches(8, 8)
+plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+# plt.gca().set_aspect('equal')
+plt.xlabel("x")
+plt.ylabel("y")
+plt.legend()
+plt.grid()
+plt.plot()
+#%%
 fig = plt.figure(layout="constrained", figsize=(16, 9))
 gspace = fig.add_gridspec(4, 3, height_ratios = [2, 2, 1, 1])
 ax1 = fig.add_subplot(gspace[:2, 0]) # track
@@ -403,5 +484,24 @@ plt.legend()
 plt.grid()
 plt.show()
 
+# %%
+pos_1 = np.array(
+    [states['x'][5],
+    states['y'][5]]
+)
 
+pos_2 = np.array(
+    [states['x'][6],
+    states['y'][6]]
+)
+
+
+index_1 = env.track_observer.get_closest_index(pos_1)
+index_2 = env.track_observer.get_closest_index(pos_2)
+
+progress_1 = env.track.progress_map[index_1]
+progress_2 = env.track.progress_map[index_2]
+
+print(f"Progress 1: {progress_1}")
+print(f"Progress 2: {progress_2}")
 # %%

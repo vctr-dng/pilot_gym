@@ -2,6 +2,7 @@
 import os
 # from gymnasium import make
 import numpy as np
+import logging
 from tqdm import tqdm
 import torch
 import yaml
@@ -10,7 +11,7 @@ from track.track import Track
 # change current working dir to root
 os.chdir('..')
 
-from agent import KanPPPOAgent
+from agent import KanPPOAgent
 from racing_env import RacingEnv
 #%%
 iter_num = 100
@@ -20,7 +21,9 @@ dt_imposed = 0.1
 track_path = "data/tracks/oval_track_40_8_15_2.npz"
 track = Track.load(track_path)
 
-run_name = "RacingEnv-v0__ppo_continuous_action_kan__1__1733043964__k2_g3_MLP"
+runs = [
+]
+
 run_dir = f"runs/pilot_gym/{run_name}"
 data_dir = f"{run_dir}"
 env_conf_path = f"{data_dir}/env_conf.yaml"
@@ -46,7 +49,7 @@ model_path = f"{run_dir}/{iter_num}/ppo_continuous_action_kan_{formatted_iterati
 if not os.path.exists(model_path):
     model_path = f"{run_dir}/ppo_continuous_action_kan_{formatted_iteration_number}.cleanrl_model"
 
-agent = KanPPPOAgent.load_model(
+agent = KanPPOAgent.load_model(
     model_path=model_path,
     params_path=training_params_path
 )
@@ -54,10 +57,14 @@ agent = KanPPPOAgent.load_model(
 # env:racing_env.RacingEnv = make(training_params["env_id"], **env_conf)
 env = RacingEnv(env_configuration=env_conf['env_configuration'])
 
+#%%
+logging.basicConfig(level=logging.DEBUG)
+plot_states = True
+override_initial_state = True
 
 for x in range(0, 2, 2):
     initial_state = {
-                "x": -3,
+                "x": 0,
                 "y": 0,
                 "heading": np.pi/2,
                 # "steering": 0,
@@ -87,8 +94,9 @@ for x in range(0, 2, 2):
 
     obs, info = env.reset()
 
-    for key, value in initial_state.items():
-        env.vehicle_model.__setattr__(key, value)
+    if override_initial_state:
+        for key, value in initial_state.items():
+            env.vehicle_model.__setattr__(key, value)
 
     obs, obs_info = env.get_observation()
     observations = [obs]
@@ -173,21 +181,21 @@ for x in range(0, 2, 2):
     sm.set_array([])
     cbar = plt.colorbar(sm, ax=ax)
     cbar.set_label('Time Step')
-
     plt.show()
-    
-    for state in logged_states:
-        if state in ["x", "y"]:
-            continue
-        plt.clf()
-        plt.plot(np.arange(len(states[state])) * dt, states[state], label=state)
-        plt.title(f"{state} over Time")
-        plt.xlabel("Time [s]")
-        plt.ylabel(state)
-        plt.legend()
-        plt.grid()
-        plt.ticklabel_format(style='plain', axis='y', useOffset=False)
-        plt.show()
+
+    if plot_states:
+        for state in logged_states:
+            if state in ["x", "y"]:
+                continue
+            plt.clf()
+            plt.plot(np.arange(len(states[state])) * dt, states[state], label=state)
+            plt.title(f"{state} over Time")
+            plt.xlabel("Time [s]")
+            plt.ylabel(state)
+            plt.legend()
+            plt.grid()
+            plt.ticklabel_format(style='plain', axis='y', useOffset=False)
+            plt.show()
 
 # car_heading = np.array(states["heading"]) % (2*np.pi)
 
@@ -237,6 +245,7 @@ for x in range(0, 2, 2):
 pos = np.array([env.vehicle_model.x, env.vehicle_model.y])
 heading = env.vehicle_model.heading
 track_observation = env.track_observer(pos, heading)
+track_observation = track_observation[len(env.track_observer.observed_state):]
 track_observation = track_observation.reshape(-1, 2)
 plt.scatter(track_observation[:, 0], track_observation[:, 1], c='blue', label='Track Observation')
 plt.title("Track Observation")
