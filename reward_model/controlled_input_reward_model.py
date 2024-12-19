@@ -33,7 +33,7 @@ class ControlledInputRewardModel(BaseRewardModel):
         out_track_term = 0
         if np.abs(lateral_proportion) > 1:
             progress_term = 0
-            out_track_term = -self.coefficients["out_track"] * lateral_proportion
+            out_track_term = -self.coefficients["out_track"] * np.abs(lateral_proportion)
 
         # promote smoother steering inputs
         steer_cost = -self.coefficients["steering_cost"] * self.input_cost(
@@ -74,6 +74,7 @@ class ControlledInputRewardModel(BaseRewardModel):
             "steering_cost": steer_cost,
             "throttle_cost": throttle_cost,
             "braking_cost": brake_cost,
+            "double_pedal_cost": double_pedal_cost,
         }
 
         return reward, reward_info

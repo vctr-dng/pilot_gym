@@ -27,7 +27,7 @@ class SimpleRewardModel(BaseRewardModel):
         out_track_term = 0
         if np.abs(lateral_proportion) > 1:
             progress_term = 0
-            out_track_term = -self.coefficients["out_track"] * lateral_proportion
+            out_track_term = -self.coefficients["out_track"] * np.abs(lateral_proportion)
 
         reward = progress_term + out_track_term
 

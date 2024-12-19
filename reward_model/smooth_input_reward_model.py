@@ -10,7 +10,7 @@ class SmoothInputRewardModel(BaseRewardModel):
     def __init__(self, coefficients: dict):
         super().__init__(coefficients)
         self.previous_action: dict = {
-            "steering_rate": 0,
+            "steering": 0,
             "throttle": 0,
             "braking": 0,
         }
@@ -33,22 +33,22 @@ class SmoothInputRewardModel(BaseRewardModel):
         out_track_term = 0
         if np.abs(lateral_proportion) > 1:
             progress_term = 0
-            out_track_term = -self.coefficients["out_track"] * lateral_proportion
+            out_track_term = -self.coefficients["out_track"] * np.abs(lateral_proportion)
 
         # promote smoother steering inputs
         steer_cost = -self.coefficients["steering_cost"] * self.input_cost(
-            self.previous_action["steering_rate"],
-            action["steering_rate"],
+            state_observation["previous_steering"],
+            state_observation["steering"],
             self.coefficients["steering_cost_pow"],
         )
         throttle_cost = -self.coefficients["throttle_cost"] * self.input_cost(
-            self.previous_action["throttle"],
-            action["throttle"],
+            state_observation["previous_throttle"],
+            state_observation["throttle"],
             self.coefficients["throttle_cost_pow"],
         )
         brake_cost = -self.coefficients["braking_cost"] * self.input_cost(
-            self.previous_action["braking"],
-            action["braking"],
+            state_observation["previous_braking"],
+            state_observation["braking"],
             self.coefficients["braking_cost_pow"],
         )
 
