@@ -4,3 +4,4 @@ from .controlled_input_reward_model import (
 )
 from .simple_reward_model import SimpleRewardModel as SimpleRewardModel
 from .smooth_input_reward_model import SmoothInputRewardModel as SmoothInputRewardModel
+from .smooth_steer_reward_model import SmoothSteerRewardModel as SmoothSteerRewardModel
