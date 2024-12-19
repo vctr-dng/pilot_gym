@@ -94,9 +94,6 @@ def evaluate(
     env_id: str,
     eval_episodes: int,
     run_name: str,
-    Model: torch.nn.Module,
-    k: int,
-    g: int,
     conf: dict,  # environment conf
     params: dict,  # training params
     device: torch.device = torch.device("cpu"),
@@ -511,22 +508,20 @@ def train(params: dict):
                         params["env_id"],
                         eval_episodes=10,
                         run_name=f"{run_name}-eval",
-                        Model=Agent,
                         device=device,
                         gamma=params["gamma"],
-                        k=k,
-                        g=g,
                         conf=conf,
                         params=params,
                     )
                     mean_return = np.mean(episodic_returns)
                     mean_length = np.mean(episodic_lengths)
-                    # writer.add_scalar("eval/mean_episodic_return",
-                    # mean_return,
-                    # iteration)
-                    # writer.add_scalar("eval/mean_episodic_length",
-                    # mean_length,
-                    # iteration)
+                    writer.add_scalar("eval/mean_episodic_return",
+                    mean_return,
+                    iteration)
+                    writer.add_scalar("eval/mean_episodic_length",
+                    mean_length,
+                    iteration)
+
                     # for idx, episodic_return, episodic_length in enumerate(zip(
                     # episodic_returns,
                     # episodic_lengths)):
@@ -535,15 +530,16 @@ def train(params: dict):
                     # "eval/episodic_length",
                     # episodic_length,
                     # idx)
-                    writer.add_hparams(
-                        hparam_dict=hparams,
-                        metric_dict={
-                            "eval/mean_episodic_return": mean_return,
-                            "eval/mean_episodic_length": mean_length,
-                        },
-                        global_step=iteration,
-                        run_name="hparams",
-                    )
+
+                    # writer.add_hparams(
+                    #     hparam_dict=hparams,
+                    #     metric_dict={
+                    #         "eval/mean_episodic_return": mean_return,
+                    #         "eval/mean_episodic_length": mean_length,
+                    #     },
+                    #     global_step=iteration,
+                    #     run_name="hparams",
+                    # )
                     print(f"ITERATION {iteration} ended")
 
             envs.close()
